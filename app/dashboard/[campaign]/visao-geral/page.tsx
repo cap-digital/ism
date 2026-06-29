@@ -1,18 +1,18 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   DollarSign,
   Users2,
   Eye,
   MousePointerClick,
   Heart,
-  Repeat,
 } from "lucide-react";
 import { useData } from "@/components/data-provider";
 import { PageGate } from "@/components/states";
 import { KpiCard } from "@/components/ui/kpi-card";
 import { ChartCard, EmptyState } from "@/components/ui/card";
+import { MetricDropdown } from "@/components/ui/metric-dropdown";
 import { DonutChart } from "@/components/charts/donut";
 import { HorizontalBar } from "@/components/charts/bars";
 import { TrendChart } from "@/components/charts/trend";
@@ -23,6 +23,8 @@ import {
   engRate,
   cpm,
   groupBy,
+  METRICS,
+  type MetricKey,
 } from "@/lib/aggregate";
 import {
   BRAND_COLORS,
@@ -41,6 +43,9 @@ import {
   GENDER_LABEL,
 } from "@/lib/format";
 
+const GENDER_METRICS: MetricKey[] = ["reach", "investimento", "impressions", "engagement", "clicks"];
+const EMPREEND_METRICS: MetricKey[] = ["clicks", "impressions", "reach"];
+
 export default function VisaoGeralPage() {
   return (
     <PageGate>
@@ -50,8 +55,12 @@ export default function VisaoGeralPage() {
 }
 
 function Content() {
-  const { rows } = useData();
+  const { rows, type } = useData();
   const t = useMemo(() => accumulate(rows), [rows]);
+  const [genderMetric, setGenderMetric] = useState<MetricKey>("reach");
+  const gMetric = METRICS[genderMetric];
+  const [empMetric, setEmpMetric] = useState<MetricKey>("clicks");
+  const eMetric = METRICS[empMetric];
 
   const trend = useMemo(() => {
     const g = groupBy(rows, (r) => r.date).filter((b) => b.key && b.key !== "—");
@@ -85,11 +94,11 @@ function Content() {
       groupBy(rows, (r) => r.gender)
         .map((b) => ({
           name: GENDER_LABEL[b.key] ?? b.key,
-          value: b.totals.reach,
+          value: gMetric.value(b.totals),
           color: GENDER_COLORS[b.key] ?? ISM.green,
         }))
         .sort((a, b) => b.value - a.value),
-    [rows],
+    [rows, gMetric],
   );
 
   const topPracas = useMemo(
@@ -99,6 +108,16 @@ function Content() {
         .sort((a, b) => b.value - a.value)
         .slice(0, 7),
     [rows],
+  );
+
+  const topEmpreendimentos = useMemo(
+    () =>
+      groupBy(rows, (r) => r.empreendimento)
+        .map((b) => ({ name: b.key, value: eMetric.value(b.totals) }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 8)
+        .reverse(),
+    [rows, eMetric],
   );
 
   const monthData = useMemo(() => {
@@ -115,13 +134,12 @@ function Content() {
   return (
     <div className="space-y-5">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
-        <KpiCard label="Investimento" value={fmtCurrency(t.investimento)} icon={DollarSign} accent="green" sub={`${fmtInt(t.rows)} registros`} />
-        <KpiCard label="Alcance" value={fmtCompact(t.reach)} icon={Users2} accent="green" sub="pessoas únicas" />
-        <KpiCard label="Impressões" value={fmtCompact(t.impressions)} icon={Eye} accent="gold" sub={`Freq. ${fmtDecimal(frequency(t))}`} />
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
+        <KpiCard label="Investimento" value={fmtCurrency(t.investimento)} icon={DollarSign} accent="green" />
+        <KpiCard label="Alcance" value={fmtCompact(t.reach)} icon={Users2} accent="green" sub={`Freq. ${fmtDecimal(frequency(t))}`} />
+        <KpiCard label="Impressões" value={fmtCompact(t.impressions)} icon={Eye} accent="gold" sub={`CPM ${fmtCurrency(cpm(t))}`} />
         <KpiCard label="Engajamento" value={fmtCompact(t.engagement)} icon={Heart} accent="gold" sub={`Taxa ${fmtPct(engRate(t))}`} />
         <KpiCard label="Cliques" value={fmtInt(t.clicks)} icon={MousePointerClick} accent="green" sub={`CTR ${fmtPct(ctr(t))}`} />
-        <KpiCard label="CPM" value={fmtCurrency(cpm(t))} icon={Repeat} accent="red" sub="custo por mil impr." />
       </div>
 
       {/* trend + brand */}
@@ -159,23 +177,58 @@ function Content() {
         </ChartCard>
       </div>
 
-      {/* bottom row */}
-      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        <ChartCard title="Top praças por alcance" subtitle="7 maiores localidades" className="xl:col-span-2">
-          {topPracas.length ? (
-            <HorizontalBar data={topPracas} format={fmtCompact} colored />
+      {/* bottom row — gender (with metric selector) + location ranking */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* gender donut · ~35% (left) */}
+        <ChartCard
+          title={`${gMetric.label} por gênero`}
+          subtitle="Distribuição demográfica"
+          className={type === "geolocalizadas" ? "lg:order-1" : "lg:order-2"}
+          action={
+            <MetricDropdown value={genderMetric} onChange={setGenderMetric} options={GENDER_METRICS} />
+          }
+        >
+          {genderData.length ? (
+            <DonutChart
+              data={genderData}
+              format={gMetric.format}
+              centerValue={fmtCompact(gMetric.value(t))}
+              centerLabel={gMetric.short}
+            />
           ) : (
             <EmptyState />
           )}
         </ChartCard>
 
-        <ChartCard title="Alcance por gênero" subtitle="Distribuição demográfica">
-          {genderData.length ? (
-            <DonutChart data={genderData} format={fmtCompact} centerValue={fmtCompact(t.reach)} centerLabel="alcance" />
-          ) : (
-            <EmptyState />
-          )}
-        </ChartCard>
+        {/* location ranking · ~65% (right) */}
+        {type === "geolocalizadas" ? (
+          <ChartCard
+            title={`Top empreendimentos · ${eMetric.label}`}
+            subtitle="Varejo: Assaí, Atacadão, Atakarejo, Mercantil…"
+            className="lg:order-2 lg:col-span-2"
+            action={
+              <MetricDropdown value={empMetric} onChange={setEmpMetric} options={EMPREEND_METRICS} />
+            }
+          >
+            {topEmpreendimentos.length ? (
+              <HorizontalBar data={topEmpreendimentos} format={eMetric.format} colored />
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+        ) : (
+          <ChartCard
+            title="Top praças por alcance"
+            subtitle="Maiores cidades / mercados"
+            className="lg:order-1 lg:col-span-2"
+          >
+            {topPracas.length ? (
+              <HorizontalBar data={topPracas} format={fmtCompact} colored />
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+        )}
       </div>
 
       {monthData.length > 1 && (

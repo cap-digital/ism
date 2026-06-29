@@ -9,8 +9,9 @@ export interface Row {
   mes: string; // "" when missing
   age: string;
   gender: string; // female | male | unknown
-  region: string; // primary location extracted from adset
-  praca: string; // cleaned adset label (location/store)
+  praca: string; // cidade / mercado (Salvador, Feira de Santana, ...)
+  empreendimento: string; // rede de loja (Atacadão, Atakarejo, ...) ou "Institucional"
+  ponto: string; // rótulo granular: empreendimento · bairro
   format: string; // REELS/STORY, FEED/STORY, IG, ...
   ad: string; // cleaned creative name
   campaign: string; // cleaned campaign label

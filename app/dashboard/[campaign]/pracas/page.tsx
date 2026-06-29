@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MapPin } from "lucide-react";
+import { MapPin, Building2, Store } from "lucide-react";
 import { useData } from "@/components/data-provider";
 import { PageGate } from "@/components/states";
 import { ChartCard, Card, EmptyState } from "@/components/ui/card";
@@ -35,9 +35,10 @@ function Content() {
   const [sort, setSort] = useState<MetricKey>("reach");
   const metric = METRICS[sort];
 
-  const pracas = useMemo(
+  // Granular point of sale (empreendimento · bairro) — the most useful ranking.
+  const pontos = useMemo(
     () =>
-      groupBy(rows, (r) => r.praca).sort(
+      groupBy(rows, (r) => r.ponto).sort(
         (a, b) =>
           (metric.higherBetter ? -1 : 1) *
           (metric.value(a.totals) - metric.value(b.totals)),
@@ -47,50 +48,82 @@ function Content() {
 
   const bar = useMemo(
     () =>
-      pracas
+      pontos
         .slice(0, 10)
-        .map((b) => ({ name: b.key.length > 24 ? b.key.slice(0, 23) + "…" : b.key, value: metric.value(b.totals) }))
+        .map((b) => ({ name: b.key.length > 26 ? b.key.slice(0, 25) + "…" : b.key, value: metric.value(b.totals) }))
         .reverse(),
-    [pracas, metric],
+    [pontos, metric],
   );
 
-  const regionDonut = useMemo(
+  const cidadeData = useMemo(
     () =>
-      groupBy(rows, (r) => r.region)
-        .map((b, i) => ({ name: b.key, value: b.totals.reach, color: PALETTE[i % PALETTE.length] }))
+      groupBy(rows, (r) => r.praca)
+        .map((b, i) => ({ name: b.key, value: metric.value(b.totals), color: PALETTE[i % PALETTE.length] }))
         .sort((a, b) => b.value - a.value),
-    [rows],
+    [rows, metric],
+  );
+
+  const empreendimentoData = useMemo(
+    () =>
+      groupBy(rows, (r) => r.empreendimento)
+        .map((b, i) => ({ name: b.key, value: metric.value(b.totals), color: PALETTE[i % PALETTE.length] }))
+        .sort((a, b) => b.value - a.value),
+    [rows, metric],
   );
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="flex items-center gap-1.5 text-sm text-ism-green-900/55">
-          <MapPin className="h-4 w-4" /> {pracas.length} praças · ordenar por
+          <MapPin className="h-4 w-4" /> {pontos.length} pontos · {cidadeData.length} praças · ordenar por
         </p>
         <MetricSelect value={sort} onChange={setSort} options={SORT_OPTIONS} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <ChartCard title={`Top praças · ${metric.label}`} subtitle="10 maiores localidades" className="xl:col-span-2">
+        <ChartCard
+          title={`Top pontos de venda · ${metric.label}`}
+          subtitle="Empreendimento e bairro (10 maiores)"
+          className="xl:col-span-2"
+        >
           {bar.length ? <HorizontalBar data={bar} format={metric.format} colored /> : <EmptyState />}
         </ChartCard>
 
-        <ChartCard title="Alcance por região" subtitle="Agrupamento macro">
-          {regionDonut.length ? <DonutChart data={regionDonut} format={fmtCompact} /> : <EmptyState />}
+        <ChartCard
+          title="Por empreendimento"
+          subtitle="Redes de loja"
+          action={<Store className="h-5 w-5 text-ism-green-700/50" />}
+        >
+          {empreendimentoData.length ? (
+            <DonutChart data={empreendimentoData} format={metric.format} />
+          ) : (
+            <EmptyState />
+          )}
         </ChartCard>
       </div>
 
+      <ChartCard
+        title={`Praças (cidades) · ${metric.label}`}
+        subtitle="Mercados atendidos"
+        action={<Building2 className="h-5 w-5 text-ism-green-700/50" />}
+      >
+        {cidadeData.length ? (
+          <HorizontalBar data={[...cidadeData].reverse()} format={metric.format} colored />
+        ) : (
+          <EmptyState />
+        )}
+      </ChartCard>
+
       <Card className="overflow-hidden">
         <div className="px-5 pt-5">
-          <h3 className="text-[15px] font-semibold text-ism-green-900">Detalhamento por praça</h3>
+          <h3 className="text-[15px] font-semibold text-ism-green-900">Detalhamento por ponto de venda</h3>
           <p className="mt-0.5 text-xs text-ism-green-900/50">Ordenado por {metric.label.toLowerCase()}</p>
         </div>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-y border-ism-green/10 bg-ism-green/[0.03] text-left text-xs uppercase tracking-wide text-ism-green-900/45">
-                <Th className="pl-5">Praça</Th>
+                <Th className="pl-5">Ponto de venda</Th>
                 <Th right>Alcance</Th>
                 <Th right>Impressões</Th>
                 <Th right>Invest.</Th>
@@ -100,7 +133,7 @@ function Content() {
               </tr>
             </thead>
             <tbody>
-              {pracas.map((b: GroupBucket, i) => (
+              {pontos.map((b: GroupBucket, i) => (
                 <tr key={b.key} className="border-b border-ism-green/5 transition-colors hover:bg-ism-green/[0.03]">
                   <td className="py-2.5 pl-5">
                     <div className="flex items-center gap-2.5">

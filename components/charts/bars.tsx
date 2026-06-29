@@ -93,11 +93,14 @@ export function HorizontalBar({
   format,
   height,
   colored = false,
+  labelWidth = 130,
 }: {
   data: BarDatum[];
   format: (v: number) => string;
   height?: number;
   colored?: boolean;
+  /** Width reserved for the category (name) labels. */
+  labelWidth?: number;
 }) {
   const h = height ?? Math.max(160, data.length * 38 + 24);
   return (
@@ -121,7 +124,7 @@ export function HorizontalBar({
           tick={AXIS}
           tickLine={false}
           axisLine={false}
-          width={130}
+          width={labelWidth}
           interval={0}
         />
         <Tooltip cursor={{ fill: "#2E9E3F0f" }} content={Tip({ format })} />

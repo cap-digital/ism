@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Home, Radio, MapPin, ChevronRight, Menu, X } from "lucide-react";
-import { NAV } from "@/lib/nav";
+import { NAV, navFor } from "@/lib/nav";
 import { CAMPAIGNS } from "@/lib/constants";
 import type { CampaignType } from "@/lib/types";
 import { BrandMark } from "./brand-mark";
@@ -17,7 +17,7 @@ export function Sidebar({ type }: { type: CampaignType }) {
 
   const nav = (
     <nav className="flex flex-1 flex-col gap-1">
-      {NAV.map((item) => {
+      {navFor(type).map((item) => {
         const href = `/dashboard/${type}/${item.slug}`;
         const active = pathname === href;
         const Icon = item.icon;
@@ -86,7 +86,7 @@ export function Sidebar({ type }: { type: CampaignType }) {
             <span className="text-sm font-semibold">{CAMPAIGNS[type].name}</span>
           </div>
           <Link
-            href={`/dashboard/${other}/${activeSlug(pathname) ?? "visao-geral"}`}
+            href={`/dashboard/${other}/${otherSlug(pathname, other)}`}
             onClick={() => setOpen(false)}
             className="flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm text-white/70 transition-colors hover:bg-white/10 hover:text-white"
           >
@@ -146,7 +146,12 @@ export function Sidebar({ type }: { type: CampaignType }) {
   );
 }
 
-function activeSlug(pathname: string): string | null {
-  const found = NAV.find((n) => pathname.endsWith(`/${n.slug}`));
-  return found?.slug ?? null;
+/** Keep the same section when switching campaigns, unless it doesn't exist
+ * for the target campaign (e.g. Vídeo only exists for Always ON). */
+function otherSlug(pathname: string, other: CampaignType): string {
+  const current = NAV.find((n) => pathname.endsWith(`/${n.slug}`));
+  if (current && navFor(other).some((n) => n.slug === current.slug)) {
+    return current.slug;
+  }
+  return "visao-geral";
 }

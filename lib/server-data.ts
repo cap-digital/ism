@@ -47,41 +47,111 @@ const FORMAT_KEYS = new Set([
 ]);
 const BRANDS = new Set(["ENERUP", "GOOB", "YULO"]);
 
+// Cidades (praças de mídia). FSA = Feira de Santana.
+const CITY_MAP: Record<string, string> = {
+  SALVADOR: "Salvador",
+  FEIRA: "Feira de Santana",
+  FSA: "Feira de Santana",
+  ARACAJU: "Aracaju",
+  MACEIO: "Maceió",
+};
+// Empreendimentos (redes/lojas) — NÃO são praças.
+const STORE_MAP: Record<string, string> = {
+  ATACADAO: "Atacadão",
+  "ATACADÃO": "Atacadão",
+  ATAKADAO: "Atacadão",
+  ATAKAREJO: "Atakarejo",
+  MERCANTIL: "Mercantil",
+  ASSAI: "Assaí",
+  "ASSAÍ": "Assaí",
+  "CENTRO SUL": "Centro Sul",
+};
+const STORE_KEYS = Object.keys(STORE_MAP);
+
 function brackets(s: string): string[] {
   return (s.match(/\[([^\]]*)\]/g) ?? []).map((t) => t.slice(1, -1).trim());
 }
 
-/** Extract a primary region/location and ad format from the adset name. */
-function parseAdset(adset: string): { region: string; format: string } {
-  let region = "";
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/(^|\s|\/)\p{L}/gu, (c) => c.toUpperCase())
+    .trim();
+}
+
+export interface Location {
+  praca: string; // cidade / mercado
+  empreendimento: string; // rede de loja (ou "Institucional")
+  ponto: string; // rótulo granular: empreendimento + bairro
+  format: string;
+}
+
+/**
+ * Classifica o nome do adset em cidade (praça), empreendimento (rede) e
+ * ponto (bairro). Os nomes misturam cidades e lojas na primeira posição, então
+ * a classificação é feita por listas conhecidas — nunca por posição.
+ */
+function parseLocation(adset: string): Location {
+  const cities = new Set<string>();
+  let store = "";
   let format = "";
-  for (const t of brackets(adset)) {
+  const bairros: string[] = [];
+
+  const classify = (rawToken: string) => {
+    const t = rawToken.trim();
+    if (!t) return;
     const up = t.toUpperCase();
     if (FORMAT_KEYS.has(up)) {
       if (!format) format = up;
-      continue;
+      return;
     }
-    if (BRANDS.has(up)) continue;
-    if (/^\d+%$/.test(t)) continue;
-    if (!region) region = t.toUpperCase();
-  }
-  return { region: region || "OUTROS", format: format || "OUTROS" };
-}
+    if (BRANDS.has(up)) return;
+    if (/^\d+%?$/.test(t)) return; // percentuais / números soltos
+    if (up.includes("/")) {
+      // ex.: "SALVADOR/FEIRA" — pode conter duas cidades
+      const parts = up.split("/");
+      if (parts.every((p) => CITY_MAP[p])) {
+        parts.forEach((p) => cities.add(CITY_MAP[p]));
+        return;
+      }
+    }
+    if (CITY_MAP[up]) {
+      cities.add(CITY_MAP[up]);
+      return;
+    }
+    // empreendimento pode aparecer como token isolado ou dentro de um texto
+    const hitStore = STORE_KEYS.find((k) => up === k || up.startsWith(k + " ") || up.includes(" " + k));
+    if (hitStore) {
+      if (!store) store = STORE_MAP[hitStore];
+      const remainder = up.replace(hitStore, "").trim();
+      if (remainder && remainder !== "PTO" && remainder.length > 1) bairros.push(titleCase(remainder));
+      return;
+    }
+    // resto = bairro/ponto descritivo (PIATA, PARIPE, "PTO DISTRIB"...)
+    bairros.push(titleCase(t));
+  };
 
-/** Human-friendly label: strip brackets, brand & format tokens, collapse dashes. */
-function cleanPraca(adset: string): string {
-  const parts = brackets(adset).filter((t) => {
-    const up = t.toUpperCase();
-    return !FORMAT_KEYS.has(up) && !BRANDS.has(up) && !/^\d+%$/.test(t);
-  });
-  // also capture text living between brackets (e.g. "- MERCANTIL PAU DA LIMA -")
-  const between = adset
+  for (const tok of brackets(adset)) classify(tok);
+  // texto fora dos colchetes (ex.: "- MERCANTIL PAU DA LIMA -")
+  adset
     .replace(/\[[^\]]*\]/g, "|")
     .split("|")
-    .map((s) => s.replace(/[-–]/g, " ").trim())
-    .filter((s) => s.length > 1);
-  const label = [...parts, ...between].join(" · ").trim();
-  return label || adset.replace(/[[\]]/g, "").trim() || "—";
+    .flatMap((s) => s.split(/[-–]/))
+    .forEach((s) => classify(s.replace(/\s+/g, " ").trim()));
+
+  // Os adsets liderados por loja/bairro são todos da região de Salvador.
+  const praca =
+    cities.size > 0 ? [...cities].sort().join(" / ") : "Salvador";
+  const empreendimento = store || "Institucional";
+  const bairro = bairros[0] ?? "";
+  const ponto =
+    empreendimento !== "Institucional"
+      ? `${empreendimento}${bairro ? " · " + bairro : ""}`
+      : bairro
+        ? bairro
+        : praca;
+
+  return { praca, empreendimento, ponto, format: format || "OUTROS" };
 }
 
 function cleanLabel(s: string): string {
@@ -117,7 +187,7 @@ function compact(type: CampaignType, raw: RawRow[]): Dataset {
 
   const rows: Row[] = raw.map((r) => {
     const adset = r.adset_name ?? "";
-    const { region, format } = parseAdset(adset);
+    const loc = parseLocation(adset);
     return {
       date: toISODate(r.date),
       marca: (r.Marca || "—").toUpperCase(),
@@ -125,9 +195,10 @@ function compact(type: CampaignType, raw: RawRow[]): Dataset {
       mes: (r["Mês"] || "").toLowerCase(),
       age: r.age || "Unknown",
       gender: (r.gender || "unknown").toLowerCase(),
-      region,
-      praca: cleanPraca(adset),
-      format,
+      praca: loc.praca,
+      empreendimento: loc.empreendimento,
+      ponto: loc.ponto,
+      format: loc.format,
       ad: cleanLabel(r.ad_name ?? "—") || "—",
       campaign: cleanLabel(r.campaign ?? "—"),
       ti: intern(r.thumbnail_url, thumbs, thumbIdx),

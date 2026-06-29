@@ -11,17 +11,15 @@ import {
 import type { ApiPayload, CampaignType, Dataset, Row } from "@/lib/types";
 import { monthRank } from "@/lib/format";
 
-export type FilterDim = "marca" | "mes" | "age" | "gender" | "format" | "region";
+export type FilterDim = "marca" | "mes" | "praca" | "empreendimento";
 
 export type Filters = Record<FilterDim, string[]>;
 
 const EMPTY_FILTERS: Filters = {
   marca: [],
   mes: [],
-  age: [],
-  gender: [],
-  format: [],
-  region: [],
+  praca: [],
+  empreendimento: [],
 };
 
 interface Ctx {
@@ -35,6 +33,10 @@ interface Ctx {
   clearFilters: () => void;
   activeFilterCount: number;
   options: Record<FilterDim, string[]>;
+  // date range (YYYY-MM-DD; "" = unbounded)
+  dateRange: { from: string; to: string };
+  setDateRange: (range: { from: string; to: string }) => void;
+  dateBounds: { min: string; max: string };
   updatedAt: string | null;
 }
 
@@ -92,6 +94,7 @@ export function DataProvider({
   const [payload, setPayload] = useState<ApiPayload | null>(payloadCache);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: "", to: "" });
 
   useEffect(() => {
     let on = true;
@@ -108,6 +111,7 @@ export function DataProvider({
   // reset filters when switching campaign type
   useEffect(() => {
     setFilters(EMPTY_FILTERS);
+    setDateRange({ from: "", to: "" });
   }, [type]);
 
   const dataset = payload ? payload[type] : EMPTY_DATASET(type);
@@ -117,22 +121,34 @@ export function DataProvider({
     return {
       marca: uniqSorted(rows, (r) => r.marca),
       mes: uniqSorted(rows, (r) => r.mes, (a, b) => monthRank(a) - monthRank(b)),
-      age: uniqSorted(rows, (r) => r.age, (a, b) => a.localeCompare(b)),
-      gender: uniqSorted(rows, (r) => r.gender),
-      format: uniqSorted(rows, (r) => r.format),
-      region: uniqSorted(rows, (r) => r.region),
+      praca: uniqSorted(rows, (r) => r.praca, (a, b) => a.localeCompare(b)),
+      empreendimento: uniqSorted(rows, (r) => r.empreendimento, (a, b) => a.localeCompare(b)),
     };
+  }, [dataset]);
+
+  const dateBounds = useMemo(() => {
+    let min = "";
+    let max = "";
+    for (const r of dataset.rows) {
+      if (!r.date) continue;
+      if (!min || r.date < min) min = r.date;
+      if (!max || r.date > max) max = r.date;
+    }
+    return { min, max };
   }, [dataset]);
 
   const rows = useMemo(() => {
     const f = filters;
     const has = (dim: FilterDim) => f[dim].length > 0;
     const active = (Object.keys(f) as FilterDim[]).filter(has);
-    if (active.length === 0) return dataset.rows;
-    return dataset.rows.filter((r) =>
-      active.every((dim) => f[dim].includes(r[dim])),
-    );
-  }, [dataset, filters]);
+    const { from, to } = dateRange;
+    if (active.length === 0 && !from && !to) return dataset.rows;
+    return dataset.rows.filter((r) => {
+      if (from && r.date < from) return false;
+      if (to && r.date > to) return false;
+      return active.every((dim) => f[dim].includes(r[dim]));
+    });
+  }, [dataset, filters, dateRange]);
 
   const toggleFilter = (dim: FilterDim, value: string) => {
     setFilters((prev) => {
@@ -144,15 +160,18 @@ export function DataProvider({
     });
   };
 
-  const clearFilters = () => setFilters(EMPTY_FILTERS);
+  const clearFilters = () => {
+    setFilters(EMPTY_FILTERS);
+    setDateRange({ from: "", to: "" });
+  };
 
   const activeFilterCount = useMemo(
     () =>
       (Object.values(filters) as string[][]).reduce(
         (n, arr) => n + arr.length,
         0,
-      ),
-    [filters],
+      ) + (dateRange.from || dateRange.to ? 1 : 0),
+    [filters, dateRange],
   );
 
   const value: Ctx = {
@@ -166,6 +185,9 @@ export function DataProvider({
     clearFilters,
     activeFilterCount,
     options,
+    dateRange,
+    setDateRange,
+    dateBounds,
     updatedAt: payload?.[type]?.updatedAt ?? null,
   };
 

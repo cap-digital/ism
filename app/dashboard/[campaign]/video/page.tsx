@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { PlayCircle, Film, Percent, Flag } from "lucide-react";
 import { useData } from "@/components/data-provider";
 import { PageGate } from "@/components/states";
@@ -14,6 +15,18 @@ import { BRAND_COLORS, ISM, PALETTE } from "@/lib/constants";
 import { fmtCompact, fmtPct } from "@/lib/format";
 
 export default function VideoPage() {
+  const { type } = useData();
+  const router = useRouter();
+
+  // Vídeo só existe para Always ON; acesso direto na Geo volta à visão geral.
+  useEffect(() => {
+    if (type === "geolocalizadas") {
+      router.replace("/dashboard/geolocalizadas/visao-geral");
+    }
+  }, [type, router]);
+
+  if (type === "geolocalizadas") return null;
+
   return (
     <PageGate>
       <Content />
