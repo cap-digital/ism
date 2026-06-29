@@ -31,7 +31,7 @@ export function KpiCard({
           <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
         </span>
       </div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight text-ism-green-900">
+      <div className="mt-3 text-2xl font-semibold tracking-tight text-ism-green-900 sm:text-3xl">
         {value}
       </div>
       {sub && <div className="mt-1 text-xs text-ism-green-900/45">{sub}</div>}

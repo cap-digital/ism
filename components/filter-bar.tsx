@@ -9,7 +9,7 @@ const DIM_LABELS: Record<FilterDim, string> = {
   marca: "Marca",
   mes: "Mês",
   praca: "Praça",
-  empreendimento: "Empreendimento",
+  empreendimento: "Varejo",
 };
 
 function displayValue(dim: FilterDim, v: string) {

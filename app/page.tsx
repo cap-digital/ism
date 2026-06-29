@@ -27,7 +27,7 @@ export default function Home() {
               <span className="inline-block text-[7rem] font-black italic leading-none tracking-tight text-white sm:text-[11rem]">
                 ism
               </span>
-              <p className="mt-2 text-lg font-semibold uppercase tracking-[0.3em] text-ism-gold sm:text-2xl">
+              <p className="mt-2 text-sm font-semibold uppercase tracking-[0.18em] text-ism-gold sm:text-2xl sm:tracking-[0.3em]">
                 Indústrias São Miguel
               </p>
             </div>
