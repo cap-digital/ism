@@ -48,9 +48,7 @@ const EMPREEND_METRICS: MetricKey[] = ["clicks", "impressions", "reach"];
 
 /** Metas de investimento por mês — apenas Always ON. */
 const META_INVESTIMENTO_AON: Record<string, number> = {
-  junho: 33000,
-  maio: 8049.42,
-  abril: 1000,
+  junho: 21150,
 };
 
 export default function VisaoGeralPage() {
