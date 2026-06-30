@@ -46,6 +46,13 @@ import {
 const GENDER_METRICS: MetricKey[] = ["reach", "investimento", "impressions", "engagement", "clicks"];
 const EMPREEND_METRICS: MetricKey[] = ["clicks", "impressions", "reach"];
 
+/** Metas de investimento por mês — apenas Always ON. */
+const META_INVESTIMENTO_AON: Record<string, number> = {
+  junho: 33000,
+  maio: 8049.42,
+  abril: 1000,
+};
+
 export default function VisaoGeralPage() {
   return (
     <PageGate>
@@ -55,8 +62,37 @@ export default function VisaoGeralPage() {
 }
 
 function Content() {
-  const { rows, type } = useData();
+  const { rows, type, dataset } = useData();
   const t = useMemo(() => accumulate(rows), [rows]);
+
+  // Progresso de investimento vs. meta do mês (apenas Always ON).
+  // Quando nenhum mês está selecionado, usa o mês mais recente disponível (hoje: junho).
+  const investProgress = useMemo(() => {
+    if (type !== "alwayson") return null;
+
+    const present = [...new Set(rows.map((r) => r.mes).filter(Boolean))];
+    const month =
+      present.length === 1
+        ? present[0]
+        : [...new Set(dataset.rows.map((r) => r.mes).filter(Boolean))].sort(
+            (a, b) => monthRank(b) - monthRank(a),
+          )[0];
+    if (!month) return null;
+
+    const goal = META_INVESTIMENTO_AON[month.toLowerCase()];
+    if (!goal) return null;
+
+    const source = present.includes(month) ? rows : dataset.rows;
+    const invested = source.reduce(
+      (s, r) => (r.mes === month ? s + r.investimento : s),
+      0,
+    );
+
+    return {
+      pct: Math.min(invested / goal, 1),
+      label: `Meta ${titleCase(month)} · ${fmtCurrency(goal)}`,
+    };
+  }, [rows, dataset, type]);
   const [genderMetric, setGenderMetric] = useState<MetricKey>("reach");
   const gMetric = METRICS[genderMetric];
   const [empMetric, setEmpMetric] = useState<MetricKey>("clicks");
@@ -135,7 +171,7 @@ function Content() {
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Investimento" value={fmtCurrency(t.investimento)} icon={DollarSign} accent="green" />
+        <KpiCard label="Investimento" value={fmtCurrency(t.investimento)} icon={DollarSign} accent="green" progress={investProgress ?? undefined} />
         <KpiCard label="Alcance" value={fmtCompact(t.reach)} icon={Users2} accent="green" sub={`Freq. ${fmtDecimal(frequency(t))}`} />
         <KpiCard label="Impressões" value={fmtCompact(t.impressions)} icon={Eye} accent="gold" sub={`CPM ${fmtCurrency(cpm(t))}`} />
         <KpiCard label="Engajamento" value={fmtCompact(t.engagement)} icon={Heart} accent="gold" sub={`Taxa ${fmtPct(engRate(t))}`} />

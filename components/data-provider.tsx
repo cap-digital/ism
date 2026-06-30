@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -108,10 +109,14 @@ export function DataProvider({
     };
   }, []);
 
+  // tracks the campaign type whose default period has already been applied
+  const defaultedFor = useRef<CampaignType | null>(null);
+
   // reset filters when switching campaign type
   useEffect(() => {
     setFilters(EMPTY_FILTERS);
     setDateRange({ from: "", to: "" });
+    defaultedFor.current = null;
   }, [type]);
 
   const dataset = payload ? payload[type] : EMPTY_DATASET(type);
@@ -136,6 +141,19 @@ export function DataProvider({
     }
     return { min, max };
   }, [dataset]);
+
+  // Always ON opens focused on the most recent month (today: junho), so the KPI
+  // value and every other metric reflect the current month by default. Filters
+  // by the `mes` column (not a date span) — a campaign that ends on Jul 5 is
+  // still counted as June. Applied once per campaign type, after data loads.
+  useEffect(() => {
+    if (!payload || defaultedFor.current === type) return;
+    defaultedFor.current = type;
+    if (type === "alwayson") {
+      const recent = options.mes[options.mes.length - 1]; // sorted asc by monthRank
+      if (recent) setFilters((f) => ({ ...f, mes: [recent] }));
+    }
+  }, [payload, type, options]);
 
   const rows = useMemo(() => {
     const f = filters;

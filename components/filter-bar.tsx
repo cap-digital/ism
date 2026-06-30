@@ -80,28 +80,16 @@ function Dropdown({ dim }: { dim: FilterDim }) {
   );
 }
 
-/** Computes the [from, to] date span of a month name, clamped to data bounds. */
-function monthSpan(month: string, bounds: { min: string; max: string }) {
-  const rank = monthRank(month);
-  if (rank === 99) return null;
-  const year = Number((bounds.max || bounds.min || "2026").slice(0, 4));
-  const mm = String(rank + 1).padStart(2, "0");
-  const lastDay = new Date(year, rank + 1, 0).getDate();
-  let from = `${year}-${mm}-01`;
-  let to = `${year}-${mm}-${String(lastDay).padStart(2, "0")}`;
-  if (bounds.min && from < bounds.min) from = bounds.min;
-  if (bounds.max && to > bounds.max) to = bounds.max;
-  return { from, to };
-}
-
 const ddmm = (iso: string) => (iso ? iso.slice(8, 10) + "/" + iso.slice(5, 7) : "");
 
 function PeriodPicker() {
-  const { dateRange, setDateRange, dateBounds, options } = useData();
+  const { dateRange, setDateRange, dateBounds, options, filters, toggleFilter } = useData();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const months = options.mes;
-  const active = Boolean(dateRange.from || dateRange.to);
+  const selMonths = filters.mes;
+  const customActive = Boolean(dateRange.from || dateRange.to);
+  const active = selMonths.length > 0 || customActive;
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => {
@@ -111,9 +99,19 @@ function PeriodPicker() {
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
-  const label = active
-    ? `${ddmm(dateRange.from) || "início"} → ${ddmm(dateRange.to) || "fim"}`
-    : "Período";
+  const sortedSel = [...selMonths].sort((a, b) => monthRank(a) - monthRank(b));
+  const label = selMonths.length
+    ? sortedSel.length === 1
+      ? titleCase(sortedSel[0])
+      : `${titleCase(sortedSel[0])} +${sortedSel.length - 1}`
+    : customActive
+      ? `${ddmm(dateRange.from) || "início"} → ${ddmm(dateRange.to) || "fim"}`
+      : "Período";
+
+  const clearPeriod = () => {
+    selMonths.forEach((m) => toggleFilter("mes", m));
+    setDateRange({ from: "", to: "" });
+  };
 
   return (
     <div className="relative" ref={ref}>
@@ -139,13 +137,11 @@ function PeriodPicker() {
               </div>
               <div className="flex flex-wrap gap-1.5 pb-3">
                 {months.map((m) => {
-                  const span = monthSpan(m, dateBounds);
-                  const on =
-                    !!span && dateRange.from === span.from && dateRange.to === span.to;
+                  const on = selMonths.includes(m);
                   return (
                     <button
                       key={m}
-                      onClick={() => span && setDateRange(span)}
+                      onClick={() => toggleFilter("mes", m)}
                       className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                         on
                           ? "bg-ism-green text-white"
@@ -188,7 +184,7 @@ function PeriodPicker() {
 
           {active && (
             <button
-              onClick={() => setDateRange({ from: "", to: "" })}
+              onClick={clearPeriod}
               className="mt-3 w-full rounded-xl bg-ism-red/10 py-1.5 text-xs font-medium text-ism-red transition-colors hover:bg-ism-red/15"
             >
               Limpar período
