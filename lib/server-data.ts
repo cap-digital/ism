@@ -229,7 +229,7 @@ function compact(type: CampaignType, raw: RawRow[]): Dataset {
 let cache: { data: Awaited<ReturnType<typeof load>>; at: number } | null = null;
 const TTL = 1000 * 60 * 30; // 30 min
 
-async function load() {
+async function load(force = false) {
   const res = await fetch(ENDPOINT, {
     method: "POST",
     headers: {
@@ -238,7 +238,9 @@ async function load() {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name: "Functions" }),
-    next: { revalidate: 1800 },
+    // Ao forçar, ignora qualquer cache de fetch e busca o dado mais recente
+    // (ex.: coeficiente de investimento recém-alterado na origem).
+    ...(force ? { cache: "no-store" as const } : { next: { revalidate: 1800 } }),
   });
   if (!res.ok) throw new Error(`ISM endpoint ${res.status}`);
   const json = (await res.json()) as {
@@ -251,9 +253,9 @@ async function load() {
   };
 }
 
-export async function getPayload() {
-  if (cache && Date.now() - cache.at < TTL) return cache.data;
-  const data = await load();
+export async function getPayload(force = false) {
+  if (!force && cache && Date.now() - cache.at < TTL) return cache.data;
+  const data = await load(force);
   cache = { data, at: Date.now() };
   return data;
 }

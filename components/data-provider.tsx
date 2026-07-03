@@ -39,6 +39,8 @@ interface Ctx {
   setDateRange: (range: { from: string; to: string }) => void;
   dateBounds: { min: string; max: string };
   updatedAt: string | null;
+  refreshing: boolean;
+  refresh: () => void;
 }
 
 const DataCtx = createContext<Ctx | null>(null);
@@ -47,10 +49,14 @@ const DataCtx = createContext<Ctx | null>(null);
 let payloadCache: ApiPayload | null = null;
 let inflight: Promise<ApiPayload> | null = null;
 
-async function loadPayload(): Promise<ApiPayload> {
+async function loadPayload(force = false): Promise<ApiPayload> {
+  if (force) {
+    payloadCache = null;
+    inflight = null;
+  }
   if (payloadCache) return payloadCache;
   if (!inflight) {
-    inflight = fetch("/api/dataset")
+    inflight = fetch(force ? "/api/dataset?force=1" : "/api/dataset", force ? { cache: "no-store" } : undefined)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
@@ -94,8 +100,24 @@ export function DataProvider({
 }) {
   const [payload, setPayload] = useState<ApiPayload | null>(payloadCache);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [dateRange, setDateRange] = useState<{ from: string; to: string }>({ from: "", to: "" });
+
+  // Força uma busca nova, furando os caches do cliente, da rota e da origem.
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setError(null);
+    try {
+      const d = await loadPayload(true);
+      setPayload(d);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   useEffect(() => {
     let on = true;
@@ -205,6 +227,8 @@ export function DataProvider({
     setDateRange,
     dateBounds,
     updatedAt: payload?.[type]?.updatedAt ?? null,
+    refreshing,
+    refresh,
   };
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>;

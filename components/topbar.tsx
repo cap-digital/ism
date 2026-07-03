@@ -9,7 +9,7 @@ import { FilterBar } from "./filter-bar";
 
 export function Topbar() {
   const pathname = usePathname();
-  const { type, loading, updatedAt } = useData();
+  const { type, loading, updatedAt, refreshing, refresh } = useData();
   const current = NAV.find((n) => pathname.endsWith(`/${n.slug}`));
   const meta = CAMPAIGNS[type];
 
@@ -37,14 +37,27 @@ export function Topbar() {
             {current?.label ?? "Dashboard"}
           </h1>
         </div>
-        <div className="flex items-center gap-2 text-xs text-ism-green-900/45">
+        <div className="flex items-center gap-3 text-xs text-ism-green-900/45">
           {loading ? (
             <span className="flex items-center gap-1.5">
               <RefreshCw className="h-3.5 w-3.5 animate-spin" /> carregando…
             </span>
           ) : (
-            updated && <span>Atualizado {updated}</span>
+            updated && (
+              <span className="hidden sm:inline">
+                {refreshing ? "Atualizando…" : `Atualizado ${updated}`}
+              </span>
+            )
           )}
+          <button
+            onClick={refresh}
+            disabled={refreshing || loading}
+            title="Buscar os dados mais recentes da origem"
+            className="flex items-center gap-1.5 rounded-full border border-ism-green/15 bg-white px-3 py-1.5 font-medium text-ism-green-700 transition-colors hover:border-ism-green/30 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            Atualizar
+          </button>
         </div>
       </div>
       <div className="mt-3">
