@@ -4,6 +4,7 @@ import {
   Users,
   MapPin,
   Tag,
+  Target,
   PlayCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ export const NAV: NavItem[] = [
   { slug: "pracas", label: "Praças", icon: MapPin, desc: "Desempenho por local" },
   { slug: "marcas", label: "Marcas", icon: Tag, desc: "Comparativo de marcas" },
   { slug: "video", label: "Vídeo", icon: PlayCircle, desc: "Retenção e funil", only: "alwayson" },
+  { slug: "metas", label: "Progresso de Metas", icon: Target, desc: "Planejado vs. executado" },
 ];
 
 /** Nav items visible for a given campaign type. */

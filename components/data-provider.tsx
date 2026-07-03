@@ -142,17 +142,15 @@ export function DataProvider({
     return { min, max };
   }, [dataset]);
 
-  // Always ON opens focused on the most recent month (today: junho), so the KPI
-  // value and every other metric reflect the current month by default. Filters
-  // by the `mes` column (not a date span) — a campaign that ends on Jul 5 is
-  // still counted as June. Applied once per campaign type, after data loads.
+  // Both campaigns open focused on the most recent month, so the KPI value and
+  // every other metric reflect the current month by default. Filters by the
+  // `mes` column (not a date span) — a campaign that ends on Jul 5 is still
+  // counted as June. Applied once per campaign type, after data loads.
   useEffect(() => {
     if (!payload || defaultedFor.current === type) return;
     defaultedFor.current = type;
-    if (type === "alwayson") {
-      const recent = options.mes[options.mes.length - 1]; // sorted asc by monthRank
-      if (recent) setFilters((f) => ({ ...f, mes: [recent] }));
-    }
+    const recent = options.mes[options.mes.length - 1]; // sorted asc by monthRank
+    if (recent) setFilters((f) => ({ ...f, mes: [recent] }));
   }, [payload, type, options]);
 
   const rows = useMemo(() => {

@@ -7,15 +7,19 @@ export function KpiCard({
   icon: Icon,
   accent = "green",
   progress,
+  highlightComplete = false,
 }: {
   label: string;
   value: string;
   sub?: string;
   icon: LucideIcon;
   accent?: "green" | "gold" | "red";
-  /** Optional progress bar toward a goal (pct already clamped to 0–1). */
+  /** Optional progress bar toward a goal. */
   progress?: { pct: number; label?: string };
+  /** When true, the bar turns gold once the goal is reached (≥ 100%). */
+  highlightComplete?: boolean;
 }) {
+  const over = highlightComplete && !!progress && progress.pct >= 1;
   const accents = {
     green: "bg-ism-green/10 text-ism-green-700",
     gold: "bg-ism-gold/15 text-ism-gold-600",
@@ -42,13 +46,19 @@ export function KpiCard({
         <div className="mt-3">
           <div className="mb-1 flex items-center justify-between text-[11px] font-medium text-ism-green-900/45">
             <span className="truncate">{progress.label}</span>
-            <span className="ml-2 shrink-0 tabular-nums text-ism-green-700">
-              {Math.min(Math.round(progress.pct * 100), 100)}%
+            <span
+              className={`ml-2 shrink-0 rounded-full px-1.5 font-semibold tabular-nums ${
+                over ? "bg-ism-gold/20 text-ism-gold-600" : "text-ism-green-700"
+              }`}
+            >
+              {Math.round(progress.pct * 100)}%
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-ism-green/10">
             <div
-              className="h-full rounded-full bg-ism-green transition-[width] duration-500"
+              className={`h-full rounded-full transition-[width] duration-500 ${
+                over ? "bg-ism-gold" : "bg-ism-green"
+              }`}
               style={{ width: `${Math.min(progress.pct * 100, 100)}%` }}
             />
           </div>

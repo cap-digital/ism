@@ -35,6 +35,13 @@ export function monthRank(m: string): number {
   return i === -1 ? 99 : i;
 }
 
+/** Nome do mês (pt-BR, minúsculo) a partir de uma data ISO YYYY-MM-DD. */
+export function monthFromISO(iso: string): string {
+  if (!iso || iso.length < 7) return "";
+  const m = parseInt(iso.slice(5, 7), 10);
+  return MONTH_ORDER[m - 1] ?? "";
+}
+
 export function titleCase(s: string): string {
   return s.replace(/\b\w/g, (c) => c.toUpperCase());
 }

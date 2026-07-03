@@ -198,7 +198,7 @@ function PeriodPicker() {
 
 export function FilterBar() {
   const { activeFilterCount, clearFilters, rows, dataset } = useData();
-  const dims: FilterDim[] = ["marca", "praca", "empreendimento"];
+  const dims: FilterDim[] = ["marca"];
 
   return (
     <div className="flex flex-wrap items-center gap-2">

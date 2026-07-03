@@ -42,14 +42,10 @@ import {
   titleCase,
   GENDER_LABEL,
 } from "@/lib/format";
+import { metaInvestimentoMes } from "@/lib/metas";
 
 const GENDER_METRICS: MetricKey[] = ["reach", "investimento", "impressions", "engagement", "clicks"];
 const EMPREEND_METRICS: MetricKey[] = ["clicks", "impressions", "reach"];
-
-/** Metas de investimento por mês — apenas Always ON. */
-const META_INVESTIMENTO_AON: Record<string, number> = {
-  junho: 21150,
-};
 
 export default function VisaoGeralPage() {
   return (
@@ -77,7 +73,7 @@ function Content() {
           )[0];
     if (!month) return null;
 
-    const goal = META_INVESTIMENTO_AON[month.toLowerCase()];
+    const goal = metaInvestimentoMes(type, month);
     if (!goal) return null;
 
     const source = present.includes(month) ? rows : dataset.rows;
