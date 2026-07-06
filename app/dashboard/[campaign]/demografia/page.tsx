@@ -14,7 +14,7 @@ import { GENDER_COLORS, ISM } from "@/lib/constants";
 import { GENDER_LABEL } from "@/lib/format";
 
 const AGE_ORDER = ["18-24", "25-34", "35-44", "45-54", "55-64", "65+", "Unknown"];
-const DEMO_METRICS: MetricKey[] = ["reach", "investimento", "impressions", "engagement", "clicks"];
+const DEMO_METRICS: MetricKey[] = ["reach", "investimento", "impressions", "engagement", "clicks", "cpm"];
 
 export default function DemografiaPage() {
   return (

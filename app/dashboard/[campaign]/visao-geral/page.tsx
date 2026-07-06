@@ -140,7 +140,8 @@ function Content() {
   const topPracas = useMemo(
     () =>
       groupBy(rows, (r) => r.praca)
-        .map((b) => ({ name: b.key, value: b.totals.reach }))
+        .map((b) => ({ name: b.key, value: cpm(b.totals) }))
+        .filter((p) => p.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 7),
     [rows],
@@ -182,7 +183,7 @@ function Content() {
       <div className="grid gap-4 xl:grid-cols-3">
         <ChartCard
           title="Evolução diária"
-          subtitle="Investimento e alcance ao longo do período"
+          subtitle="Investimento e impressões ao longo do período"
           className="xl:col-span-2"
         >
           {trend.length ? (
@@ -190,7 +191,7 @@ function Content() {
               data={trend}
               height={300}
               series={[
-                { key: "reach", name: "Alcance", color: ISM.green, type: "area", format: fmtCompact },
+                { key: "impressions", name: "Impressões", color: ISM.green, type: "area", format: fmtCompact },
                 { key: "investimento", name: "Investimento", color: ISM.gold, type: "line", format: fmtCurrency },
               ]}
             />
@@ -254,12 +255,12 @@ function Content() {
           </ChartCard>
         ) : (
           <ChartCard
-            title="Top praças por alcance"
+            title="Top praças por CPM"
             subtitle="Maiores cidades / mercados"
             className="lg:order-1 lg:col-span-2"
           >
             {topPracas.length ? (
-              <HorizontalBar data={topPracas} format={fmtCompact} colored />
+              <HorizontalBar data={topPracas} format={fmtCurrency} colored />
             ) : (
               <EmptyState />
             )}
