@@ -38,11 +38,12 @@ import {
   fmtInt,
   fmtPct,
   fmtDecimal,
+  monthFromISO,
   monthRank,
   titleCase,
   GENDER_LABEL,
 } from "@/lib/format";
-import { metaInvestimentoMes } from "@/lib/metas";
+import { metaMonths, metaBrands, sumMetas } from "@/lib/metas";
 
 const GENDER_METRICS: MetricKey[] = ["reach", "investimento", "impressions", "engagement", "clicks"];
 const EMPREEND_METRICS: MetricKey[] = ["clicks", "impressions", "reach"];
@@ -56,37 +57,42 @@ export default function VisaoGeralPage() {
 }
 
 function Content() {
-  const { rows, type, dataset } = useData();
+  const { rows, type, filters, dateRange } = useData();
   const t = useMemo(() => accumulate(rows), [rows]);
 
-  // Progresso de investimento vs. meta do mês (apenas Always ON).
-  // Quando nenhum mês está selecionado, usa o mês mais recente disponível (hoje: junho).
-  const investProgress = useMemo(() => {
-    if (type !== "alwayson") return null;
+  // Progresso vs. meta contratada, para investimento e impressões.
+  // O "planejado" acompanha os filtros ativos (mês/período e marca) para bater
+  // com o "executado" das linhas já filtradas — mesma lógica da página de Metas.
+  // Vale para as duas campanhas (Always ON e Geolocalizadas).
+  const metaProgress = useMemo(() => {
+    const goalMonths = metaMonths(type);
+    const goalBrands = metaBrands(type);
 
-    const present = [...new Set(rows.map((r) => r.mes).filter(Boolean))];
-    const month =
-      present.length === 1
-        ? present[0]
-        : [...new Set(dataset.rows.map((r) => r.mes).filter(Boolean))].sort(
-            (a, b) => monthRank(b) - monthRank(a),
-          )[0];
-    if (!month) return null;
+    const scopeMonths = filters.mes.length
+      ? filters.mes.filter((m) => goalMonths.includes(m))
+      : dateRange.from || dateRange.to
+        ? (() => {
+            const present = new Set(rows.map((r) => r.mes || monthFromISO(r.date)));
+            return goalMonths.filter((m) => present.has(m));
+          })()
+        : goalMonths;
 
-    const goal = metaInvestimentoMes(type, month);
-    if (!goal) return null;
+    const scopeBrands = filters.marca.length
+      ? filters.marca.filter((b) => goalBrands.includes(b))
+      : goalBrands;
 
-    const source = present.includes(month) ? rows : dataset.rows;
-    const invested = source.reduce(
-      (s, r) => (r.mes === month ? s + r.investimento : s),
-      0,
-    );
-
+    const planned = sumMetas(type, scopeMonths, scopeBrands);
     return {
-      pct: Math.min(invested / goal, 1),
-      label: `Meta ${titleCase(month)} · ${fmtCurrency(goal)}`,
+      invest:
+        planned.investimento > 0
+          ? { pct: t.investimento / planned.investimento, label: `Meta ${fmtCurrency(planned.investimento)}` }
+          : undefined,
+      impr:
+        planned.impressoes > 0
+          ? { pct: t.impressions / planned.impressoes, label: `Meta ${fmtCompact(planned.impressoes)}` }
+          : undefined,
     };
-  }, [rows, dataset, type]);
+  }, [rows, type, filters.mes, filters.marca, dateRange, t]);
   const [genderMetric, setGenderMetric] = useState<MetricKey>("reach");
   const gMetric = METRICS[genderMetric];
   const [empMetric, setEmpMetric] = useState<MetricKey>("clicks");
@@ -165,9 +171,9 @@ function Content() {
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
-        <KpiCard label="Investimento" value={fmtCurrency(t.investimento)} icon={DollarSign} accent="green" progress={investProgress ?? undefined} />
+        <KpiCard label="Investimento" value={fmtCurrency(t.investimento)} icon={DollarSign} accent="green" progress={metaProgress.invest} highlightComplete />
+        <KpiCard label="Impressões" value={fmtCompact(t.impressions)} icon={Eye} accent="gold" sub={`CPM ${fmtCurrency(cpm(t))}`} progress={metaProgress.impr} highlightComplete />
         <KpiCard label="Alcance" value={fmtCompact(t.reach)} icon={Users2} accent="green" sub={`Freq. ${fmtDecimal(frequency(t))}`} />
-        <KpiCard label="Impressões" value={fmtCompact(t.impressions)} icon={Eye} accent="gold" sub={`CPM ${fmtCurrency(cpm(t))}`} />
         <KpiCard label="Engajamento" value={fmtCompact(t.engagement)} icon={Heart} accent="gold" sub={`Taxa ${fmtPct(engRate(t))}`} />
         <KpiCard label="Cliques" value={fmtInt(t.clicks)} icon={MousePointerClick} accent="green" sub={`CTR ${fmtPct(ctr(t))}`} />
       </div>
