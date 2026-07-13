@@ -24,6 +24,10 @@ export const METAS: Record<CampaignType, Record<string, Record<string, Meta>>> =
       ENERUP: { investimento: 4500, impressoes: 562_500 },
       YULO: { investimento: 3120, impressoes: 390_000 },
     },
+    agosto: {
+      ENERUP: { investimento: 4000, impressoes: 500_000 },
+      GOOB: { investimento: 4000, impressoes: 500_000 },
+    },
   },
   geolocalizadas: {
     junho: {
@@ -32,9 +36,14 @@ export const METAS: Record<CampaignType, Record<string, Record<string, Meta>>> =
       YULO: { investimento: 2600, impressoes: 325_000 },
     },
     julho: {
-      ENERUP: { investimento: 1000, impressoes: 125_000 },
+      ENERUP: { investimento: 2000, impressoes: 250_000 },
       GOOB: { investimento: 1000, impressoes: 125_000 },
-      YULO: { investimento: 520, impressoes: 65_000 },
+      YULO: { investimento: 1040, impressoes: 130_000 },
+    },
+    agosto: {
+      ENERUP: { investimento: 4000, impressoes: 500_000 },
+      GOOB: { investimento: 4000, impressoes: 500_000 },
+      YULO: { investimento: 3300, impressoes: 412_500 },
     },
   },
 };
