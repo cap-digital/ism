@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MapPin, Building2, Store } from "lucide-react";
+import { MapPin, Building2, Store, TrendingUp } from "lucide-react";
 import { useData } from "@/components/data-provider";
 import { PageGate } from "@/components/states";
 import { ChartCard, Card, EmptyState } from "@/components/ui/card";
 import { MetricSelect } from "@/components/ui/metric-select";
 import { HorizontalBar } from "@/components/charts/bars";
 import { DonutChart } from "@/components/charts/donut";
+import { TrendChart } from "@/components/charts/trend";
 import {
   groupBy,
   ctr,
@@ -31,7 +32,7 @@ export default function PracasPage() {
 }
 
 function Content() {
-  const { rows } = useData();
+  const { rows, type } = useData();
   const [sort, setSort] = useState<MetricKey>("reach");
   const metric = METRICS[sort];
 
@@ -71,6 +72,33 @@ function Content() {
     [rows, metric],
   );
 
+  // Evolução diária por empreendimento — uma linha por rede (na Always ON há
+  // apenas "Institucional", virando a série diária da métrica selecionada).
+  const empTrend = useMemo(() => {
+    const emps = [...new Set(rows.map((r) => r.empreendimento))];
+    const m = new Map(
+      groupBy(rows, (r) => `${r.date}__${r.empreendimento}`).map((b) => [b.key, b.totals]),
+    );
+    const dates = [...new Set(rows.map((r) => r.date).filter(Boolean))].sort();
+    const data = dates.map((d) => {
+      const [, mo, da] = d.split("-");
+      const o: Record<string, string | number> = { name: `${da}/${mo}` };
+      for (const e of emps) {
+        const t = m.get(`${d}__${e}`);
+        o[e] = t ? metric.value(t) : 0;
+      }
+      return o;
+    });
+    const series = emps.map((e, i) => ({
+      key: e,
+      name: e,
+      color: PALETTE[i % PALETTE.length],
+      type: "line" as const,
+      format: metric.format,
+    }));
+    return { data, series };
+  }, [rows, metric]);
+
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -80,39 +108,72 @@ function Content() {
         <MetricSelect value={sort} onChange={setSort} options={SORT_OPTIONS} />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <ChartCard
-          title={`Top pontos de venda · ${metric.label}`}
-          subtitle="Empreendimento e bairro (10 maiores)"
-          className="xl:col-span-2"
-        >
-          {bar.length ? <HorizontalBar data={bar} format={metric.format} colored /> : <EmptyState />}
-        </ChartCard>
+      {type === "alwayson" ? (
+        // Always ON não tem redes de loja (tudo é Institucional), então o ranking
+        // de "pontos de venda" fica redundante com "praças". Mostramos as praças
+        // ao lado da evolução diária por empreendimento.
+        <div className="grid gap-4 xl:grid-cols-2">
+          <ChartCard
+            title={`Praças (cidades) · ${metric.label}`}
+            subtitle="Mercados atendidos"
+            action={<Building2 className="h-5 w-5 text-ism-green-700/50" />}
+          >
+            {cidadeData.length ? (
+              <HorizontalBar data={[...cidadeData].reverse()} format={metric.format} height={340} colored />
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
 
-        <ChartCard
-          title="Por empreendimento"
-          subtitle="Redes de loja"
-          action={<Store className="h-5 w-5 text-ism-green-700/50" />}
-        >
-          {empreendimentoData.length ? (
-            <DonutChart data={empreendimentoData} format={metric.format} />
-          ) : (
-            <EmptyState />
-          )}
-        </ChartCard>
-      </div>
+          <ChartCard
+            title="Evolução diária"
+            subtitle={`${metric.label} por dia`}
+            action={<TrendingUp className="h-5 w-5 text-ism-green-700/50" />}
+          >
+            {empTrend.data.length ? (
+              <TrendChart data={empTrend.data} series={empTrend.series} height={300} />
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+        </div>
+      ) : (
+        <>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <ChartCard
+              title={`Top pontos de venda · ${metric.label}`}
+              subtitle="Empreendimento e bairro (10 maiores)"
+              className="xl:col-span-2"
+            >
+              {bar.length ? <HorizontalBar data={bar} format={metric.format} colored /> : <EmptyState />}
+            </ChartCard>
 
-      <ChartCard
-        title={`Praças (cidades) · ${metric.label}`}
-        subtitle="Mercados atendidos"
-        action={<Building2 className="h-5 w-5 text-ism-green-700/50" />}
-      >
-        {cidadeData.length ? (
-          <HorizontalBar data={[...cidadeData].reverse()} format={metric.format} colored />
-        ) : (
-          <EmptyState />
-        )}
-      </ChartCard>
+            <ChartCard
+              title="Por empreendimento"
+              subtitle="Redes de loja"
+              action={<Store className="h-5 w-5 text-ism-green-700/50" />}
+            >
+              {empreendimentoData.length ? (
+                <DonutChart data={empreendimentoData} format={metric.format} />
+              ) : (
+                <EmptyState />
+              )}
+            </ChartCard>
+          </div>
+
+          <ChartCard
+            title={`Praças (cidades) · ${metric.label}`}
+            subtitle="Mercados atendidos"
+            action={<Building2 className="h-5 w-5 text-ism-green-700/50" />}
+          >
+            {cidadeData.length ? (
+              <HorizontalBar data={[...cidadeData].reverse()} format={metric.format} colored />
+            ) : (
+              <EmptyState />
+            )}
+          </ChartCard>
+        </>
+      )}
 
       <Card className="overflow-hidden">
         <div className="px-5 pt-5">
