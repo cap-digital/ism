@@ -22,17 +22,13 @@ export async function POST(req: Request) {
 
   const evt = JSON.parse(raw);
   // evt = { evento, operacao, projeto_id, estrategia_id, campaign_id, occurred_at }
-  console.log(
-    "[CAP webhook]",
-    evt.evento,
-    "projeto",
-    evt.projeto_id,
-    "estrategia",
-    evt.estrategia_id,
-  );
+  // Log do payload COMPLETO para inspecionar o que o CAP realmente envia.
+  console.log("[CAP webhook] event:", evt.evento, "delivery:", req.headers.get("x-cap-delivery") || "—");
+  console.log("[CAP webhook] payload:", JSON.stringify(evt));
 
   // >>> RECONCILIAÇÃO fica para a Fase 2 (não faz nada com os dados ainda) <<<
-  return NextResponse.json({ ok: true }); // responder rápido (2xx)
+  // Ecoa o payload recebido na resposta — ajuda a inspecionar em testes.
+  return NextResponse.json({ ok: true, received: evt }); // responder rápido (2xx)
 }
 
 // GET só para checar no navegador se a rota subiu
