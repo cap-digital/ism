@@ -205,10 +205,10 @@ function Content() {
                   </td>
                   <Cell>{fmtCurrency(b.planInv)}</Cell>
                   <Cell>{fmtCurrency(b.exInv)}</Cell>
-                  <PctCell pct={b.planInv > 0 ? b.exInv / b.planInv : 0} />
+                  <PctCell pct={b.planInv > 0 ? b.exInv / b.planInv : null} />
                   <Cell>{fmtCompact(b.planImpr)}</Cell>
                   <Cell>{fmtCompact(b.exImpr)}</Cell>
-                  <PctCell pct={b.planImpr > 0 ? b.exImpr / b.planImpr : 0} className="pr-5" />
+                  <PctCell pct={b.planImpr > 0 ? b.exImpr / b.planImpr : null} className="pr-5" />
                 </tr>
               ))}
             </tbody>
@@ -217,10 +217,10 @@ function Content() {
                 <td className="py-3 pl-5">Total</td>
                 <Cell>{fmtCurrency(planned.investimento)}</Cell>
                 <Cell>{fmtCurrency(executed.investimento)}</Cell>
-                <PctCell pct={invPct} />
+                <PctCell pct={planned.investimento > 0 ? invPct : null} />
                 <Cell>{fmtCompact(planned.impressoes)}</Cell>
                 <Cell>{fmtCompact(executed.impressions)}</Cell>
-                <PctCell pct={imprPct} className="pr-5" />
+                <PctCell pct={planned.impressoes > 0 ? imprPct : null} className="pr-5" />
               </tr>
             </tfoot>
           </table>
@@ -253,10 +253,10 @@ function Content() {
                     <td className="py-3 pl-5 font-semibold text-ism-green-900">{titleCase(m.month)}</td>
                     <Cell>{fmtCurrency(m.planInv)}</Cell>
                     <Cell>{fmtCurrency(m.exInv)}</Cell>
-                    <PctCell pct={m.planInv > 0 ? m.exInv / m.planInv : 0} />
+                    <PctCell pct={m.planInv > 0 ? m.exInv / m.planInv : null} />
                     <Cell>{fmtCompact(m.planImpr)}</Cell>
                     <Cell>{fmtCompact(m.exImpr)}</Cell>
-                    <PctCell pct={m.planImpr > 0 ? m.exImpr / m.planImpr : 0} className="pr-5" />
+                    <PctCell pct={m.planImpr > 0 ? m.exImpr / m.planImpr : null} className="pr-5" />
                   </tr>
                 ))}
               </tbody>
@@ -305,7 +305,16 @@ function Cell({ children, className = "" }: { children: React.ReactNode; classNa
   return <td className={`py-3 text-right font-medium tabular-nums text-ism-green-900/80 ${className}`}>{children}</td>;
 }
 
-function PctCell({ pct, className = "" }: { pct: number; className?: string }) {
+// pct = null → não há meta contratada no escopo. Mostra "—" em vez de "0%",
+// que se leria como não atingimento de uma meta que nunca existiu.
+function PctCell({ pct, className = "" }: { pct: number | null; className?: string }) {
+  if (pct === null) {
+    return (
+      <td className={`py-3 text-right font-semibold tabular-nums text-ism-green-900/30 ${className}`}>
+        —
+      </td>
+    );
+  }
   const done = pct >= 1;
   return (
     <td className={`py-3 text-right font-semibold tabular-nums ${done ? "text-ism-green-700" : "text-ism-green-900/60"} ${className}`}>
