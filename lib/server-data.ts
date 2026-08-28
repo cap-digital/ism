@@ -165,6 +165,23 @@ function toISODate(d?: string): string {
   return dt.toISOString().slice(0, 10);
 }
 
+/**
+ * Adsets ignorados no dashboard. As linhas são descartadas antes de virarem
+ * `Row`, então não entram em nenhuma métrica, dimensão, filtro ou total.
+ * O nome tem que bater por inteiro — o mesmo adset sem o sufixo [CANCELADO]
+ * é outra veiculação e continua contando.
+ */
+const EXCLUDED_ADSETS = new Set([
+  "[ATAKAREJO] [CABULA] [FEED/STORY] [CANCELADO]",
+]);
+
+const normalizeAdset = (s: string) => s.replace(/\s+/g, " ").trim().toUpperCase();
+const EXCLUDED_ADSET_KEYS = new Set([...EXCLUDED_ADSETS].map(normalizeAdset));
+
+function isExcludedAdset(adset: string): boolean {
+  return EXCLUDED_ADSET_KEYS.has(normalizeAdset(adset));
+}
+
 function compact(type: CampaignType, raw: RawRow[]): Dataset {
   const thumbs: string[] = [];
   const perms: string[] = [];
@@ -185,37 +202,39 @@ function compact(type: CampaignType, raw: RawRow[]): Dataset {
     return i;
   };
 
-  const rows: Row[] = raw.map((r) => {
-    const adset = r.adset_name ?? "";
-    const loc = parseLocation(adset);
-    return {
-      date: toISODate(r.date),
-      marca: (r.Marca || "—").toUpperCase(),
-      objetivo: (r.Objetivo || "—").toUpperCase(),
-      mes: (r["Mês"] || "").toLowerCase(),
-      age: r.age || "Unknown",
-      gender: (r.gender || "unknown").toLowerCase(),
-      praca: loc.praca,
-      empreendimento: loc.empreendimento,
-      ponto: loc.ponto,
-      format: loc.format,
-      ad: cleanLabel(r.ad_name ?? "—") || "—",
-      campaign: cleanLabel(r.campaign ?? "—"),
-      ti: intern(r.thumbnail_url, thumbs, thumbIdx),
-      pi: intern(r.instagram_permalink_url, perms, permIdx),
-      impressions: num(r.impressions),
-      clicks: num(r.clicks),
-      reach: num(r.reach),
-      engagement: num(r.actions_post_engagement),
-      reactions: num(r.actions_post_reaction),
-      v25: num(r.video_p25_watched_actions_video_view),
-      v50: num(r.video_p50_watched_actions_video_view),
-      v75: num(r.video_p75_watched_actions_video_view),
-      v100: num(r.video_p100_watched_actions_video_view),
-      vtp: num(r.video_thruplay_watched_actions_video_view),
-      investimento: num(r.Investimento),
-    };
-  });
+  const rows: Row[] = raw
+    .filter((r) => !isExcludedAdset(r.adset_name ?? ""))
+    .map((r) => {
+      const adset = r.adset_name ?? "";
+      const loc = parseLocation(adset);
+      return {
+        date: toISODate(r.date),
+        marca: (r.Marca || "—").toUpperCase(),
+        objetivo: (r.Objetivo || "—").toUpperCase(),
+        mes: (r["Mês"] || "").toLowerCase(),
+        age: r.age || "Unknown",
+        gender: (r.gender || "unknown").toLowerCase(),
+        praca: loc.praca,
+        empreendimento: loc.empreendimento,
+        ponto: loc.ponto,
+        format: loc.format,
+        ad: cleanLabel(r.ad_name ?? "—") || "—",
+        campaign: cleanLabel(r.campaign ?? "—"),
+        ti: intern(r.thumbnail_url, thumbs, thumbIdx),
+        pi: intern(r.instagram_permalink_url, perms, permIdx),
+        impressions: num(r.impressions),
+        clicks: num(r.clicks),
+        reach: num(r.reach),
+        engagement: num(r.actions_post_engagement),
+        reactions: num(r.actions_post_reaction),
+        v25: num(r.video_p25_watched_actions_video_view),
+        v50: num(r.video_p50_watched_actions_video_view),
+        v75: num(r.video_p75_watched_actions_video_view),
+        v100: num(r.video_p100_watched_actions_video_view),
+        vtp: num(r.video_thruplay_watched_actions_video_view),
+        investimento: num(r.Investimento),
+      };
+    });
 
   return {
     type,
